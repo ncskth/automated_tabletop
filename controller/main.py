@@ -53,6 +53,10 @@ def initialize():
     # Set port baudrate
     port.setBaudRate(1000000)
 
+    handler.reboot(port, right_id)
+    handler.reboot(port, left_id)
+    time.sleep(1)
+
     handler.write4ByteTxRx(port, right_id, ADDR_OPERATING_MODE, 4)
     handler.write4ByteTxRx(port, left_id, ADDR_OPERATING_MODE, 4)
 
@@ -75,13 +79,8 @@ def move_to(x, y):
     left_angle  = -(math.pi - linkage.get_a11() - math.pi / 2)
     right_angle = -(math.pi / 2 - linkage.get_a42())
 
-    print("-------")
-    print(linkage.get_a11() * RAD_TO_DEG, linkage.get_a12() * RAD_TO_DEG, linkage.get_a41() * RAD_TO_DEG, linkage.get_a42() * RAD_TO_DEG)
-    print(left_angle * RAD_TO_DEG, right_angle * RAD_TO_DEG)
     left_discrete = center + degree_to_dx(left_angle) + left_trim
     right_discrete = center + degree_to_dx(right_angle) + right_trim
-
-    print(left_discrete, right_discrete)
 
     if 0 < left_discrete < 4095 and 0 < right_discrete < 4095:
         handler.write4ByteTxRx(port, right_id, ADDR_GOAL_POSITION, right_discrete)
@@ -101,13 +100,13 @@ def keypress(event):
     new_x = x
     new_y = y
     if event.char == 'w':
-        new_y += 0.1
+        new_y += 1
     elif event.char == 's':
-        new_y -= 0.1
+        new_y -= 1
     elif event.char == 'a':
-        new_x -= 0.1
+        new_x -= 1
     elif event.char == 'd':
-        new_x += 0.1
+        new_x += 1
     else:
         pass
     if move_to(new_x, new_y):
@@ -122,7 +121,7 @@ root.bind('s',keypress)
 root.bind('a',keypress)
 root.bind('d',keypress)
 move_to(x, y)
-root.mainloop()
+root.mainloop() #comment this to enter the loop
 
 time.sleep(0.5)
 while True:
@@ -130,7 +129,3 @@ while True:
     time.sleep(0.2)
     move_to(0, 42)
     time.sleep(0.2)
-
-time.sleep(2)
-handler.write1ByteTxRx(port, left_id, ADDR_TORQUE_ENABLE, 0)
-handler.write1ByteTxRx(port, right_id, ADDR_TORQUE_ENABLE, 0)
