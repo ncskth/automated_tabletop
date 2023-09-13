@@ -8,7 +8,7 @@ from tkinter import *
 DEG_TO_RAD = math.pi / 180
 RAD_TO_DEG = 180 / math.pi
 
-XM = False
+XM = True
 
 if XM:
     # Control table address
