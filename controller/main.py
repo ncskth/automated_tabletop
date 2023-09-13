@@ -8,13 +8,25 @@ from tkinter import *
 DEG_TO_RAD = math.pi / 180
 RAD_TO_DEG = 180 / math.pi
 
+XM = False
 
-# Control table address
-ADDR_TORQUE_ENABLE = 64
-ADDR_GOAL_POSITION = 116
-ADDR_MIN_POSITION_LIMIT = 52
-ADDR_MAX_POSITION_LIMIT = 48
-ADDR_OPERATING_MODE = 11
+if XM:
+    # Control table address
+    ADDR_TORQUE_ENABLE = 64
+    ADDR_GOAL_POSITION = 116
+    ADDR_MIN_POSITION_LIMIT = 52
+    ADDR_MAX_POSITION_LIMIT = 48
+    ADDR_OPERATING_MODE = 11
+    left_trim = 0
+    right_trim = 210
+else:
+    ADDR_TORQUE_ENABLE = 64
+    ADDR_GOAL_POSITION = 116
+    ADDR_MIN_POSITION_LIMIT = 52
+    ADDR_MAX_POSITION_LIMIT = 48
+    ADDR_OPERATING_MODE = 11
+    left_trim = 0
+    right_trim = 0
 
 # Protocol version
 PROTOCOL_VERSION = 2
@@ -27,8 +39,7 @@ r5 = 10
 
 left_id = 1
 right_id = 2
-left_trim = 0
-right_trim = 210
+
 
 center = 4095 // 2
 
@@ -88,12 +99,15 @@ def move_to(x, y):
         return True
     return False
 
-
-
 initialize()
 
 y = 30
 x = 0
+
+
+# handler.write4ByteTxRx(port, right_id, ADDR_GOAL_POSITION, 4096 // 2 + right_trim)
+# handler.write4ByteTxRx(port, left_id, ADDR_GOAL_POSITION, 4096 // 2 + left_trim)
+# time.sleep(1000000000)
 def keypress(event):
     global y
     global x
@@ -121,11 +135,16 @@ root.bind('s',keypress)
 root.bind('a',keypress)
 root.bind('d',keypress)
 move_to(x, y)
-root.mainloop() #comment this to enter the loop
+# root.mainloop() #comment this to enter the loop
 
 time.sleep(0.5)
 while True:
-    move_to(0, 25)
-    time.sleep(0.2)
-    move_to(0, 42)
-    time.sleep(0.2)
+    move_to(10, 28)
+    time.sleep(0.1)
+    move_to(10, 42)
+    time.sleep(0.1)
+    move_to(-10, 42)
+    time.sleep(0.1)
+    move_to(-10, 28)
+    time.sleep(0.1)
+
