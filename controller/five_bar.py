@@ -29,7 +29,7 @@ class FiveBar():
         self.r4 = link4
         self.r5 = link5
 
-    def foward(self,a1,a4):
+    def forward(self,a1,a4):
         r1 = self.r1
         r2 = self.r2
         r3 = self.r3
@@ -38,7 +38,7 @@ class FiveBar():
 
         A_1 = r1**2-r2**2
         B_1 = -2*r1*cos(a1)
-        C_1 = -2*r1*sin(a4)
+        C_1 = -2*r4*sin(a4)
 
         A_2 = r5**2+r4**2-r3**2
         B_2 = -2*r5 -2*r4*cos(a1)
@@ -87,6 +87,44 @@ class FiveBar():
 
         self.a41 = atan2((2*t_21),(1-t_21**2))
         self.a42 = atan2((2*t_22),(1-t_22**2))
+
+
+    def calculate_position(self, theta1, theta2):
+        P1 = (0, 0)
+        P2 = (self.r5, 0)
+        L1 = self.r1
+        L2 = self.r2
+        L3 = self.r3
+        L4 = self.r4
+        L5 = self.r5
+
+        # Calculate positions of the outer joints of L1 and L2
+        # Assuming P1 and P2 are (x, y) tuples
+        J1 = (P1[0] + L1 * np.cos(theta1), P1[1] + L1 * np.sin(theta1))
+        J2 = (P2[0] + L2 * np.cos(theta2), P2[1] + L2 * np.sin(theta2))
+
+        # Calculate distance between J1 and J2
+        d = np.sqrt((J2[0] - J1[0])**2 + (J2[1] - J1[1])**2)
+
+        if d > L3 + L4:
+            raise ValueError("Linkage configuration is beyond reach.")
+
+        # Use the law of cosines to find the angle between L3 and the line connecting J1 and J2
+        # This is required to find the intersection points
+        angle_L3 = np.arccos((L3**2 + d**2 - L4**2) / (2 * L3 * d))
+
+        # Find the angle of the line connecting J1 and J2
+        angle_line = np.arctan2(J2[1] - J1[1], J2[0] - J1[0])
+
+        # Calculate the angle to reach the end-effector position
+        angle_to_effector = angle_line + angle_L3
+
+        # Calculate position of the end-effector (assuming it is at the end of L3 for simplicity)
+        Ex = J1[0] + L3 * np.cos(angle_to_effector)
+        Ey = J1[1] + L3 * np.sin(angle_to_effector)
+
+        return Ex, Ey
+
 
     def get_a11(self):
         return self.a11
