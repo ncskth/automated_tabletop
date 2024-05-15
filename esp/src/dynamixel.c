@@ -17,19 +17,22 @@ extern "C" {
 #define DX_INS_RETURN 0x55
 #define DX_INS_SYNC_READ 0x82
 #define DX_INS_SYN_WRITE 0x83
-#define DX_INS_FAST_SYNC_READ0 0x8A
+#define DX_INS_FAST_SYNC_READ 0x8A
 #define DX_INS_BULK_READ 0x92
 #define DX_INS_BULK_WRITE 0x93
 #define DX_INS_FAST_BULK_READ 0x9A
 
 #define DX_ADDR_BAUD_RATE 8
+#define DX_ADDR_
 #define DX_ADDR_TORQUE_ENABLE 64
 #define DX_ADDR_GOAL_VELOCITY 104
 #define DX_ADDR_GOAL_POSITION 116
+#define DX_ADDR_PROFILE_VELOCITY 112
 #define DX_ADDR_GOAL_PWM 100
 #define DX_ADDR_OPERATING_MODE 11
 #define DX_ADDR_STATUS_RETURN_LEVEL 68
 #define DX_ADDR_CURRENT_LIMIT 38
+#define DX_ADDR_PRESENT_POSITION 132
 
 #define DX_HEADER_0 0xFF
 #define DX_HEADER_1 0xFF
@@ -106,23 +109,23 @@ static void dx_send_buf(dynamixel_t *dx, uint8_t* buf, uint16_t len) {
 
 static void dx_send_packet(dynamixel_t *dx, uint8_t id, uint8_t inst, uint8_t *buf, uint8_t len) {
     uint8_t header[] = {DX_HEADER_0, DX_HEADER_1, DX_HEADER_2, DX_HEADER_3,
-        id, ((len + 3) & 0x0F), ((len + 3) & 0xF0) >> 8, inst
+        id, ((len + 3) & 0xFF), ((len + 3) & 0xFF00) >> 8, inst
     };
-    dx_send_buf(dx, header, sizeof(header));
-    dx_send_buf(dx, buf, len);
+    // dx_send_buf(dx, header, sizeof(header));
+    // dx_send_buf(dx, buf, len);
 
     uint16_t crc = 0;
     crc = update_crc(crc, header, sizeof(header));
     crc = update_crc(crc, buf, len);
-    uint8_t crc_buf[] = {(crc & 0x0F), (crc & 0xF0) >> 8};
-    dx_send_buf(dx, &crc, sizeof(crc_buf));
+    uint8_t crc_buf[] = {(crc & 0xFF), (crc & 0xFF00) >> 8};
+    // dx_send_buf(dx, &crc, sizeof(crc_buf));
 
 
-    // uint8_t out_buf[len + sizeof(header) + sizeof(crc_buf)];
-    // memcpy(out_buf, header, sizeof(header));
-    // memcpy(out_buf + sizeof(header), buf, len);
-    // memcpy(out_buf + sizeof(header) + len, crc_buf, 2);
-    // dx_send_buf(dx, out_buf, len + sizeof(header) + sizeof(crc_buf));
+    uint8_t out_buf[len + sizeof(header) + sizeof(crc_buf)];
+    memcpy(out_buf, header, sizeof(header));
+    memcpy(out_buf + sizeof(header), buf, len);
+    memcpy(out_buf + sizeof(header) + len, &crc, 2);
+    dx_send_buf(dx, out_buf, len + sizeof(header) + 2);
 }
 
 void dx_init(dynamixel_t *dx, uint8_t uart_num) {
@@ -131,22 +134,30 @@ void dx_init(dynamixel_t *dx, uint8_t uart_num) {
     dx->state = DX_STATE_HEADER_0;
 }
 
-void dx_parse_byte(dynamixel_t *dx, uint8_t byte) {
+int dx_parse_byte(dynamixel_t *dx, uint8_t byte, dx_response_t *out) {
     if (dx->expected_self_bytes > 0) {
         dx->expected_self_bytes--;
-        return;
+        // printf("expected bytes %d\n", dx->expected_self_bytes);
+        return 0;
     }
+
+    // printf("current state: %d %x\n", dx->state, byte);
+    // printf("lengtherino %d\n", dx->rx_params_length);
+
     switch (dx->state) {
         case DX_STATE_HEADER_0:
-            if (byte == DX_STATE_HEADER_0) {
+            if (byte == DX_HEADER_0) {
                 dx->state = DX_STATE_HEADER_1;
+                dx->calculated_crc = 0;
+                dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
             } else {
                 dx->state = DX_STATE_HEADER_0;
             }
             break;
 
         case DX_STATE_HEADER_1:
-            if (byte == DX_STATE_HEADER_1) {
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
+            if (byte == DX_HEADER_1) {
                 dx->state = DX_STATE_HEADER_2;
             } else {
                 dx->state = DX_STATE_HEADER_0;
@@ -154,7 +165,8 @@ void dx_parse_byte(dynamixel_t *dx, uint8_t byte) {
             break;
 
         case DX_STATE_HEADER_2:
-            if (byte == DX_STATE_HEADER_2) {
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
+            if (byte == DX_HEADER_2) {
                 dx->state = DX_STATE_HEADER_3;
             } else {
                 dx->state = DX_STATE_HEADER_0;
@@ -162,7 +174,8 @@ void dx_parse_byte(dynamixel_t *dx, uint8_t byte) {
             break;
 
         case DX_STATE_HEADER_3:
-            if (byte == DX_STATE_HEADER_3) {
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
+            if (byte == DX_HEADER_3) {
                 dx->state = DX_STATE_ID;
             } else {
                 dx->state = DX_STATE_HEADER_0;
@@ -170,27 +183,32 @@ void dx_parse_byte(dynamixel_t *dx, uint8_t byte) {
             break;
 
         case DX_STATE_ID:
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
             dx->rx_id = byte;
             dx->state = DX_STATE_LENGTH_0;
             break;
 
         case DX_STATE_LENGTH_0:
-            dx->rx_params_length = byte & 0x0F;
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
+            dx->rx_params_length = (byte & 0xFF);
             dx->state = DX_STATE_LENGTH_1;
             break;
 
         case DX_STATE_LENGTH_1:
-            dx->rx_params_length = (byte & 0x0F) << 8;
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
+            dx->rx_params_length += (byte & 0xFF) << 8;
             dx->rx_buf_index = 0;
             dx->state = DX_STATE_INSTRUCTION;
             break;
 
         case DX_STATE_INSTRUCTION:
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
             dx->rx_instruction = byte;
             dx->state = DX_STATE_ERROR;
             break;
 
         case DX_STATE_ERROR:
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
             dx->rx_error = byte;
             dx->state = DX_STATE_PARAM;
             if (dx->rx_params_length == 4) {
@@ -199,6 +217,7 @@ void dx_parse_byte(dynamixel_t *dx, uint8_t byte) {
             break;
 
         case DX_STATE_PARAM:
+            dx->calculated_crc = update_crc(dx->calculated_crc, &byte, 1);
             dx->rx_buf[dx->rx_buf_index] = byte;
             dx->rx_buf_index++;
             if (dx->rx_buf_index == dx->rx_params_length - 4) {
@@ -207,20 +226,31 @@ void dx_parse_byte(dynamixel_t *dx, uint8_t byte) {
             break;
 
         case DX_STATE_CRC_0:
-            dx->rx_crc = byte & 0x0F;
+            dx->rx_crc = byte & 0xFF;
             dx->state = DX_STATE_CRC_1;
             break;
 
         case DX_STATE_CRC_1:
-            dx->rx_crc = (byte & 0x0F) << 8;
+            dx->rx_crc += (byte & 0xFF) << 8;
             dx->state = DX_STATE_HEADER_0;
+
+            // if (dx->rx_crc != dx->calculated_crc) {
+            //     printf("bad crc %d %d\n", dx->rx_crc, dx->calculated_crc);
+            // } else {
+            //     printf("good crc %d %d\n", dx->rx_crc, dx->calculated_crc);
+            // }
+
+            out->length = dx->rx_params_length;
+            out->id = dx->rx_id;
+            out->error = dx->rx_error;
+            memcpy(out->params, dx->rx_buf, dx->rx_params_length - 4);
+            return 1;
             break;
 
         default:
             dx->state = DX_STATE_HEADER_0;
-
-        //TODO: actually use the data
     }
+    return 0;
 }
 
 void dx_ping(dynamixel_t *dx, uint8_t id) {
@@ -248,6 +278,33 @@ void dx_set_goal_velocity(dynamixel_t *dx, uint8_t id, float rpm, uint8_t sync) 
     buf[5] = (integer_rpm >> 24) & 0x00ff;
 
     dx_send_packet(dx, id, sync ? DX_INS_REG_WRITE : DX_INS_WRITE, buf, 6);
+}
+
+void dx_set_profile_velocity(dynamixel_t *dx, uint8_t id, float rpm) {
+    uint8_t buf[6];
+    buf[0] = DX_ADDR_PROFILE_VELOCITY;
+    buf[1] = 0;
+    int16_t integer_rpm = rpm / 0.229;
+    buf[2] = integer_rpm & 0x00ff;
+    buf[3] = (integer_rpm >> 8) & 0x00ff;
+    buf[4] = (integer_rpm >> 16) & 0x00ff;
+    buf[5] = (integer_rpm >> 24) & 0x00ff;
+
+    dx_send_packet(dx, id, DX_INS_WRITE, buf, 6);
+}
+
+
+void dx_set_profile_velocity_raw(dynamixel_t *dx, uint8_t id, int32_t raw) {
+    uint8_t buf[6];
+    buf[0] = DX_ADDR_PROFILE_VELOCITY;
+    buf[1] = 0;
+    int16_t integer_rpm = raw;
+    buf[2] = integer_rpm & 0x00ff;
+    buf[3] = (integer_rpm >> 8) & 0x00ff;
+    buf[4] = (integer_rpm >> 16) & 0x00ff;
+    buf[5] = (integer_rpm >> 24) & 0x00ff;
+
+    dx_send_packet(dx, id, DX_INS_WRITE, buf, 6);
 }
 
 void dx_set_goal_position(dynamixel_t *dx, uint8_t id, uint16_t position, uint8_t sync) {
@@ -303,14 +360,6 @@ void dx_set_baud(dynamixel_t *dx, uint8_t id, dx_baud_t baud) {
     dx_send_packet(dx, id, DX_INS_WRITE, buf, 3);
 }
 
-// void dx_set_min_position(dynamixel_t *dx, uint8_t id, int16_t min) {
-
-// }
-
-// void dx_set_min_position(dynamixel_t *dx, uint8_t id, int16_t min) {
-
-// }
-
 void dx_set_operating_mode(dynamixel_t *dx, uint8_t id, dx_operating_mode_t mode) {
     uint8_t buf[3];
     buf[0] = DX_ADDR_OPERATING_MODE;
@@ -325,6 +374,16 @@ void dx_set_status_return_level(dynamixel_t *dx, uint8_t id, dx_status_return_le
     buf[1] = 0;
     buf[2] = level;
     dx_send_packet(dx, id, DX_INS_WRITE, buf, 3);
+}
+
+void dx_read_multiple_present_positions(dynamixel_t *dx, uint8_t ids[], uint8_t ids_len) {
+    uint8_t buf[4 + ids_len];
+    buf[0] = (DX_ADDR_PRESENT_POSITION & 0x00ff);
+    buf[1] = (DX_ADDR_PRESENT_POSITION & 0xff00) >> 8;
+    buf[2] = 4;
+    buf[3] = 0;
+    memcpy(buf + 4, ids, ids_len);
+    dx_send_packet(dx, DX_ID_BROADCAST, DX_INS_SYNC_READ, buf, sizeof(buf));
 }
 
 #ifdef __cplusplus

@@ -62,11 +62,19 @@ typedef struct dynamixel {
     uint8_t rx_buf[128];
     uint8_t rx_buf_index;
     uint8_t got_response;
+    uint16_t calculated_crc;
 } dynamixel_t;
+
+typedef struct dx_response {
+    uint8_t error;
+    uint8_t id;
+    uint16_t length;
+    uint8_t params[256];
+} dx_response_t;
 
 void dx_test(dynamixel_t *dx);
 void dx_init(dynamixel_t *dx, uint8_t uart_num);
-void dx_parse_byte(dynamixel_t *dx, uint8_t byte);
+int dx_parse_byte(dynamixel_t *dx, uint8_t byte, dx_response_t *out);
 void dx_ping(dynamixel_t *dx, uint8_t id);
 void dx_enable_torque(dynamixel_t *dx, uint8_t id, uint8_t enable);
 void dx_set_operating_mode(dynamixel_t *dx, uint8_t id, dx_operating_mode_t mode);
@@ -79,6 +87,9 @@ void dx_set_goal_position(dynamixel_t *dx, uint8_t id, uint16_t position, uint8_
 void dx_action(dynamixel_t *dx, uint8_t id);
 void dx_set_baud(dynamixel_t *dx, uint8_t id, dx_baud_t baud);
 void dx_got_response(dynamixel_t *dx);
+void dx_set_profile_velocity(dynamixel_t *dx, uint8_t id, float rpm);
+void dx_read_multiple_present_positions(dynamixel_t *dx, uint8_t ids[], uint8_t ids_len);
+void dx_set_profile_velocity_raw(dynamixel_t *dx, uint8_t id, int32_t raw);
 
 #ifdef __cplusplus
 }
