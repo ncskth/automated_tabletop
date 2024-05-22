@@ -220,7 +220,7 @@ void app_main() {
 
     gpio_set_direction(PIN_BUTTON, GPIO_MODE_INPUT);
     gpio_set_direction(PIN_FAN, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_FAN, 1);
+    gpio_set_level(PIN_FAN, 1); // fan ON or OFF
     uart_config_t uart_servo = {
         .baud_rate = BAUD_UARD_SERVO,
         .data_bits = UART_DATA_8_BITS,
@@ -233,10 +233,16 @@ void app_main() {
     uart_set_pin(NUM_UART_SERVO, PIN_SERVO_TX, PIN_SERVO_RX, GPIO_NUM_NC, GPIO_NUM_NC);
     uart_driver_install(NUM_UART_SERVO, 512, 512, 20, NULL, 0);
 
+
+    // TESTS using motor_thread
     // xTaskCreate(motor_thread, "motor_thread", 22000, NULL, 5, NULL);
     // xTaskCreate(troll_thread, "troll_thread", 22000, NULL, 5, NULL);
     // // dx_set_current_limit(&dx, bajs, 2000.0 / 2.6); // 200mA / 2.6mA
 
+
+
+    // TESTS not using motor_thread()
+    dx_init(&dx, NUM_UART_SERVO); // OBS this line is already in motor_thread, needed to initialize uart
     vTaskDelay(500);
 
     vTaskDelay(50);
@@ -267,6 +273,9 @@ void app_main() {
     dx_set_goal_position(&dx, 2, 4096 / 2, false);
     vTaskDelay(5000);
 
+
+
+    // TEST untitled
     // dx.expected_self_bytes = 0;
     // uart_flush(NUM_UART_SERVO);
     // while (true) {
