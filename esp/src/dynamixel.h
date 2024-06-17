@@ -90,6 +90,7 @@ void dx_got_response(dynamixel_t *dx);
 void dx_set_profile_velocity(dynamixel_t *dx, uint8_t id, float rpm);
 void dx_read_multiple_present_positions(dynamixel_t *dx, uint8_t ids[], uint8_t ids_len);
 void dx_set_profile_velocity_raw(dynamixel_t *dx, uint8_t id, int32_t raw);
+void dx_restart(dynamixel_t *dx, uint8_t id);
 
 #ifdef __cplusplus
 }

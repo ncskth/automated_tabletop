@@ -134,6 +134,10 @@ void dx_init(dynamixel_t *dx, uint8_t uart_num) {
     dx->state = DX_STATE_HEADER_0;
 }
 
+void dx_restart(dynamixel_t *dx, uint8_t id) {
+    dx_send_packet(dx, id, DX_INS_REBOOT, NULL, 0);
+}
+
 int dx_parse_byte(dynamixel_t *dx, uint8_t byte, dx_response_t *out) {
     if (dx->expected_self_bytes > 0) {
         dx->expected_self_bytes--;
