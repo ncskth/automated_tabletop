@@ -1,7 +1,7 @@
 #define PIN_LED0 13
 #define PIN_LED1 4
 #define PIN_LED2 14
-#define PIN_LED3 -1
+#define PIN_LED3 12
 #define PIN_LED4 2
 
 #define PIN_BUTTON 15
