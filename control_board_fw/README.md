@@ -1,0 +1,2 @@
+### Building
+The firmware is built and flashed using platformio. After platformio is installed, building is as simple as running `pio run -t upload`. The can be flashed directly through the USB port with no need to do anything else.

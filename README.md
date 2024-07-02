@@ -59,3 +59,7 @@ Reads the current handle position. The control boards responds with 2 float32, f
 Enables or disables the fan. Any value other than 0 is considered to be true.
 
 The control board responds with a 1.
+
+
+### Coordinate system
+The origin is in between the two servos. The Y-axis follows the board's long side and the X-axis the short side. This means that the handle can be actuated roughly in the rectangle spanned by these points `[(-10, 25), (10, 40)]`
